@@ -7,6 +7,7 @@ from loader import bot
 
 @bot.message_handler(commands=['start'])
 def bot_start(message: Message):
+    exchange = 'Bybit'
     user_id = message.from_user.id
     username = message.from_user.username
     first_name = message.from_user.first_name
@@ -14,11 +15,12 @@ def bot_start(message: Message):
 
     try:
         User.create(
+            exchange=exchange,
             user_id=user_id,
             username=username,
             first_name=first_name,
-            last_name=last_name,
+            last_name=last_name
         )
-        bot.reply_to(message, 'Добро пожаловать в менеджер задач!')
+        bot.reply_to(message, 'Добро пожаловать в крипто бот!')
     except IntegrityError:
         bot.reply_to(message, f'Рад вас снова видеть, {first_name}!')

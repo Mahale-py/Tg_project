@@ -10,9 +10,19 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ALL_COMMANDS = (
     ('start', 'Запустить бота'),
     ('help', 'Вывести справку'),
-    ('change_exchange', 'Поменять/установить биржу'),
-    ('show_course', 'Показать курс введенной валюты'),
-    ('transfer', 'Перевести из одной валюты в другую')
+    ('get_info', 'Вывести вашу информацию'),
+    ('show_course', 'Показать курс выбранной валюты'),
+    ('transfer', 'Сравнить две валюты')
+)
+
+SUPPORTABLE_COINS = (
+    ('Bitcoin', 'BTCUSDT'), ('Binance Coin', 'BNBUSDT'),
+    ('Cardano', 'ADAUSDT'), ('Ethereum', 'ETHUSD'),
+    ('Filecoin', 'FILUSDT'), ('Jito', 'JTOUSDT'),
+    ('Litecoin', 'LTCUSD'), ('Mantle Network', 'MNTUSDT'),
+    ('Notcoin', 'NOTUSDT'), ('Ondo', 'ONDOUSDT'),
+    ('Ordinals', 'ORDIUSDT'), ('Ripple', 'XRPUSD'),
+    ('Solana', 'SOLUSD'), ('Stellar Lumens', 'XLMUSDT')
 )
 
 DEFAULT_COMMANDS = (

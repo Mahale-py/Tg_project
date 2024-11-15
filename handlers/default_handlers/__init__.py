@@ -1,1 +1,1 @@
-from . import start, help
+from . import start, help, get_info
