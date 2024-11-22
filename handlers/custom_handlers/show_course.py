@@ -3,9 +3,11 @@ from telebot.types import Message
 from pybit.unified_trading import HTTP
 import requests
 from bs4 import BeautifulSoup
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config_data.config import SUPPORTABLE_COINS
 from handlers.default_handlers import help
+from config_data.config import SUPPORTABLE_COINS
+
+from keyboards.inline.coins_menu import gen_markup
+from keyboards.inline.coin_info_menu import gen_info_markup
 
 
 def find_pair(tuple_element: str) -> str:
@@ -36,8 +38,9 @@ class Currency:
     difference = 5
 
     def __init__(self):
-        self.current_converted_price = float(self.get_currency_price().replace(",", "."))
+        self.current_converted_price = float(self.get_currency_price.replace(",", "."))
 
+    @property
     def get_currency_price(self):
         full_page = requests.get(self.DOLLAR_RUB, headers=self.headers)
 
@@ -47,60 +50,13 @@ class Currency:
         return convert[0].text
 
     def check_currency(self):
-        currency = float(self.get_currency_price().replace(",", "."))
+        currency = float(self.get_currency_price.replace(",", "."))
         return currency
 
 
 currency = Currency()
 
 rouble_course = int(currency.check_currency())
-
-
-def gen_markup():
-    buttons = []
-    keyboard = InlineKeyboardMarkup()
-    for coin_name, coin_symbol in SUPPORTABLE_COINS:
-        buttons.append((coin_name, coin_symbol))
-        if len(buttons) == 2:
-            button1 = InlineKeyboardButton(text=buttons[0][0], callback_data=buttons[0][1])
-            button2 = InlineKeyboardButton(text=buttons[1][0], callback_data=buttons[1][1])
-            keyboard.add(button1, button2)
-            buttons = []
-    if len(buttons) == 1:
-        button = InlineKeyboardButton(text=buttons[0][0], callback_data=buttons[0][1])
-        keyboard.add(button)
-
-    cancel_button = InlineKeyboardButton(text='Отмена', callback_data='cancel_currency_choose')
-    keyboard.add(cancel_button)
-    return keyboard
-
-
-def gen_info_markup():
-    keyboard = InlineKeyboardMarkup()
-
-    indexPrice_button = InlineKeyboardButton(text='Индексная цена', callback_data='indexPrice')
-
-    prevPrice24h_button = InlineKeyboardButton(text='Цена сутками ранее', callback_data='prevPrice24h')
-    prevPrice1h_button = InlineKeyboardButton(text='Цена часом ранее', callback_data='prevPrice1h')
-
-    highPrice24h_button = InlineKeyboardButton(text='Наивысшая цена за сутки', callback_data='highPrice24h')
-    lowPrice24h_button = InlineKeyboardButton(text='Наименьшая цена за сутки', callback_data='lowPrice24h')
-
-    turnover24h_button = InlineKeyboardButton(text='Оборот за сутки', callback_data='turnover24h')
-    markPrice_button = InlineKeyboardButton(text='Цена маркировки', callback_data='markPrice')
-
-    price24hPcnt_button = InlineKeyboardButton(text='Процентное изменение цены за сутки', callback_data='price24hPcnt')
-
-    back_button = InlineKeyboardButton(text='Назад', callback_data='back')
-
-    keyboard.add(indexPrice_button)
-    keyboard.add(prevPrice24h_button, prevPrice1h_button)
-    keyboard.add(highPrice24h_button, lowPrice24h_button)
-    keyboard.add(turnover24h_button, markPrice_button)
-    keyboard.add(price24hPcnt_button)
-    keyboard.add(back_button)
-
-    return keyboard
 
 
 @bot.message_handler(commands=['show_course'])
@@ -251,7 +207,7 @@ def show_price_24h_pcnt(callback_query):
     growth = f'+ {price24hPcnt}'
     falling = f'- {price24hPcnt[1:]}'
 
-    text = f'Процентное изменение цены за сутки: {growth if "-" not in str(price24hPcnt) else falling}   ({find_pair(symbol)})'
+    text = f'Процентное изменение цены за сутки: {growth if "-" not in str(price24hPcnt) else falling} %   ({find_pair(symbol)})'
 
     bot.send_message(callback_query.from_user.id, text)
 

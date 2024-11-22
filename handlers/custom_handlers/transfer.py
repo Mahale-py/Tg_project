@@ -1,16 +1,15 @@
 from loader import bot
 from telebot.types import Message
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.handler_backends import State, StatesGroup
 from config_data.config import SUPPORTABLE_COINS
 from handlers.custom_handlers.show_course import get_coin_info, find_pair
 from handlers.default_handlers import help
 
 
-class TransferInfoClass:
-    currency1 = None
-    currency1_price = None
-    currency2 = None
-    currency2_price = None
+class TransferInfoStates(StatesGroup):
+    currency1 = State()
+    currency2 = State()
 
 
 def currency1_choosing():
@@ -73,49 +72,99 @@ def currency2_choosing(first_currency_name):
 
 
 @bot.message_handler(commands=['transfer'])
-def choose_currency1(message: Message):
+def choose_currency1_handler(message: Message):
+    bot.set_state(message.from_user.id, TransferInfoStates.currency1, message.chat.id)
     bot.send_message(message.from_user.id, 'Выберите первую валюту для сравнения',
                      reply_markup=currency1_choosing())
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('currency1_'))
-def choose_currency2(callback_query):
+def choose_currency2_handler(callback_query):
     bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-    data = callback_query.data
-    TransferInfoClass.currency1 = data[data.rfind('_') + 1:]
-    currency1_name = find_pair(TransferInfoClass.currency1)
+    message_data = callback_query.data
+
+    TransferInfoStates.currency1.sym = message_data[message_data.rfind('_') + 1:]
+
+    with bot.retrieve_data(callback_query.from_user.id) as data:
+        # Сохраняем информацию и делаем заготовки объектов
+        data['currency1_sym'] = TransferInfoStates.currency1.sym
+        data['currency1_price'] = float(
+            get_coin_info(
+                category='inverse',
+                symbol=f'{data["currency1_sym"]}')
+            ['result']['list'][0]['lastPrice']
+        )
+        TransferInfoStates.currency1.price = data['currency1_price']
+
+    currency1_name = find_pair(TransferInfoStates.currency1.sym)
     bot.send_message(callback_query.from_user.id, f'Вы выбрали {currency1_name}')
-    TransferInfoClass.currency1_price = float(
-        get_coin_info(
-            category='inverse',
-            symbol=f'{TransferInfoClass.currency1}')
-        ['result']['list'][0]['lastPrice']
+
+    bot.send_message(
+        callback_query.from_user.id,
+        'Выберите вторую валюту для сравнения',
+        reply_markup=currency2_choosing(
+            first_currency_name=currency1_name
+        )
     )
-    bot.send_message(callback_query.from_user.id, 'Выберите вторую валюту для сравнения',
-                     reply_markup=currency2_choosing(first_currency_name=currency1_name))
+
+    bot.set_state(callback_query.from_user.id,
+                  TransferInfoStates.currency2,
+                  callback_query.message.chat.id)
+
+    # previous version (incorrect)
+    # data = callback_query.data
+    # TransferInfoClass.currency1 = data[data.rfind('_') + 1:]
+    # currency1_name = find_pair(TransferInfoClass.currency1)
+    # bot.send_message(callback_query.from_user.id, f'Вы выбрали {currency1_name}')
+    # TransferInfoClass.currency1_price = float(
+    #     get_coin_info(
+    #         category='inverse',
+    #         symbol=f'{TransferInfoClass.currency1}')
+    #     ['result']['list'][0]['lastPrice']
+    # )
+    # bot.send_message(callback_query.from_user.id, 'Выберите вторую валюту для сравнения',
+    #                  reply_markup=currency2_choosing(first_currency_name=currency1_name))
 
 
 @bot.callback_query_handler(func=lambda callback_query: callback_query.data.startswith('currency2_'))
 def show_output(callback_query):
     bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-    data = callback_query.data
-    TransferInfoClass.currency2 = data[data.rfind('_') + 1:]
-    bot.send_message(callback_query.from_user.id, f'Вы выбрали {find_pair(TransferInfoClass.currency2)}')
-    TransferInfoClass.currency2_price = float(
-        get_coin_info(
-            category='inverse',
-            symbol=f'{TransferInfoClass.currency2}'
-        )['result']['list'][0]['lastPrice']
-    )
+    message_data = callback_query.data
 
-    price1, sym1 = TransferInfoClass.currency1_price, TransferInfoClass.currency1
-    price2, sym2 = TransferInfoClass.currency2_price, TransferInfoClass.currency2
+    TransferInfoStates.currency2.sym = message_data[message_data.rfind('_') + 1:]
 
+    with bot.retrieve_data(callback_query.from_user.id) as data:
+        # Сохраняем информацию и делаем заготовки объектов
+        data['currency2_sym'] = TransferInfoStates.currency2.sym
+        data['currency2_price'] = float(
+            get_coin_info(
+                category='inverse',
+                symbol=f'{data["currency2_sym"]}')
+            ['result']['list'][0]['lastPrice']
+        )
+        TransferInfoStates.currency2.price = data['currency2_price']
+
+    price1, sym1 = data['currency1_price'], data['currency1_sym']
+    price2, sym2 = data['currency2_price'], data['currency2_sym']
+    currency2_name = find_pair(data['currency2_sym'])
+    bot.send_message(callback_query.from_user.id, f'Вы выбрали {currency2_name}')
+
+    # previous version (incorrect)
+    # TransferInfoClass.currency2 = data[data.rfind('_') + 1:]
+    # bot.send_message(callback_query.from_user.id, f'Вы выбрали {find_pair(TransferInfoClass.currency2)}')
+    # TransferInfoClass.currency2_price = float(
+    #     get_coin_info(
+    #         category='inverse',
+    #         symbol=f'{TransferInfoClass.currency2}'
+    #     )['result']['list'][0]['lastPrice']
+    # )
+    sym1_short = sym1[:sym1.rfind('U')]
+    sym2_short = sym2[:sym2.rfind("U")]
     if price1 > price2:
-        text = f'1 {sym1[:sym1.rfind("U")]} ~ {round(price1 / price2, 2)} {sym2[:sym2.rfind("U")]}'
+        text = f'1 {sym1_short} ~ {round(price1 / price2, 2)} {sym2_short}'
         bot.send_message(callback_query.from_user.id, text)
     if price2 > price1:
-        text = f'1 {sym2[:sym2.rfind("U")]} ~ {round(price2 / price1, 2)} {sym1[:sym1.rfind("U")]}'
+        text = f'1 {sym2_short} ~ {round(price2 / price1, 2)} {sym1_short}'
         bot.send_message(callback_query.from_user.id, text)
 
 
